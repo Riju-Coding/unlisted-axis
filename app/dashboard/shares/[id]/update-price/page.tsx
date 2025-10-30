@@ -7,18 +7,7 @@ import { useRouter, useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { db } from "@/lib/firebase"
-import {
-  doc,
-  getDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-} from "firebase/firestore"
+import { doc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, Timestamp } from "firebase/firestore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -39,12 +28,14 @@ export default function UpdatePricePage() {
   const { user, role, loading } = useAuth()
   const router = useRouter()
   const params = useParams()
-  const shareId = params.id as string
+
+  const shareId = params?.id as string
 
   const [share, setShare] = useState<Share | null>(null)
   const [currentPrice, setCurrentPrice] = useState<number>(0)
   const [newPrice, setNewPrice] = useState<string>("")
   const [reason, setReason] = useState<string>("")
+  const [customDateTime, setCustomDateTime] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -59,12 +50,14 @@ export default function UpdatePricePage() {
   useEffect(() => {
     if (shareId && user && role === "admin") {
       fetchShareAndCurrentPrice()
+    } else if (!shareId && !loading) {
+      // If shareId is not available, stop loading
+      setLoadingShare(false)
     }
-  }, [shareId, user, role])
+  }, [shareId, user, role, loading])
 
   const fetchShareAndCurrentPrice = async () => {
     try {
-      // Fetch share details
       const shareDoc = await getDoc(doc(db, "shares", shareId))
       if (!shareDoc.exists()) {
         router.push("/dashboard/shares")
@@ -73,7 +66,6 @@ export default function UpdatePricePage() {
 
       const shareData = { id: shareDoc.id, ...shareDoc.data() } as Share
 
-      // Fetch current price
       const pricesQuery = query(
         collection(db, "sharePrices"),
         where("shareId", "==", shareId),
@@ -145,13 +137,25 @@ export default function UpdatePricePage() {
         throw new Error("New price cannot be the same as current price")
       }
 
+      if (!customDateTime) {
+        throw new Error("Please select a date and time for the price update")
+      }
+
+      const selectedDate = new Date(customDateTime)
+      const now = new Date()
+
+      if (selectedDate > now) {
+        throw new Error("Cannot set a future date for price updates")
+      }
+
       const changeType = getChangeType(priceValue, currentPrice)
 
-      // Add new price record
+      const customTimestamp = Timestamp.fromDate(selectedDate)
+
       await addDoc(collection(db, "sharePrices"), {
         shareId: shareId,
         price: priceValue,
-        timestamp: serverTimestamp(),
+        timestamp: customTimestamp,
         updatedBy: user.uid,
         changeType: changeType,
         reason: reason.trim() || null,
@@ -159,12 +163,12 @@ export default function UpdatePricePage() {
 
       setSuccess("Price updated successfully!")
 
-      // Reset form
       setNewPrice("")
       setReason("")
+      const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+      setCustomDateTime(localDateTime)
       setCurrentPrice(priceValue)
 
-      // Redirect after 2 seconds
       setTimeout(() => {
         router.push(`/dashboard/shares/${shareId}`)
       }, 2000)
@@ -176,7 +180,7 @@ export default function UpdatePricePage() {
     }
   }
 
-  if (loading || loadingShare) {
+  if (loading || loadingShare || !shareId) {
     return (
       <div className="flex-1 p-4 md:p-6">
         <Skeleton className="h-8 w-1/3 mb-6" />
@@ -225,7 +229,7 @@ export default function UpdatePricePage() {
         <Card className="max-w-2xl">
           <CardHeader>
             <CardTitle>Update Price</CardTitle>
-            <CardDescription>Enter the new price for this share</CardDescription>
+            <CardDescription>Enter the new price and date/time for this share</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -247,6 +251,25 @@ export default function UpdatePricePage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="customDateTime">Date & Time *</Label>
+                <Input
+                  id="customDateTime"
+                  type="datetime-local"
+                  value={customDateTime}
+                  onChange={(e) => {
+                    setCustomDateTime(e.target.value)
+                    setError(null)
+                    setSuccess(null)
+                  }}
+                  max={new Date().toISOString().slice(0, 16)}
+                  required
+                />
+                <p className="text-sm text-muted-foreground">
+                  Select the date and time when this price change occurred. Cannot be in the future.
+                </p>
+              </div>
+
               {showPreview && (
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Price Change Preview</h4>
@@ -261,6 +284,11 @@ export default function UpdatePricePage() {
                       )
                     })()}
                   </div>
+                  {customDateTime && (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      Effective Date: {new Date(customDateTime).toLocaleString()}
+                    </div>
+                  )}
                 </div>
               )}
 

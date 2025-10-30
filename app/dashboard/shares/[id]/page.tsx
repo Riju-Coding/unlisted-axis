@@ -8,7 +8,7 @@ import { db } from "@/lib/firebase"
 import { doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc } from "firebase/firestore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Edit, DollarSign } from "lucide-react"
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Edit, DollarSign, IndianRupee } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -186,7 +186,7 @@ export default function ShareDetailsPage() {
             </Link>
             <Link href={`/dashboard/shares/${shareId}/update-price`}>
               <Button>
-                <DollarSign className="mr-2 h-4 w-4" />
+                <IndianRupee className="mr-2 h-4 w-4" />
                 Update Price
               </Button>
             </Link>

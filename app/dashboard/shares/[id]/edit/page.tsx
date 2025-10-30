@@ -21,6 +21,66 @@ import { ExclamationTriangleIcon, CheckCircledIcon } from "@radix-ui/react-icons
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 
+const generateSlug = (name: string) => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+}
+
+interface YearlyFinancialData {
+  [year: string]: number
+}
+
+interface IncomeStatementData {
+  revenue: YearlyFinancialData
+  costOfMaterialConsumed: YearlyFinancialData
+  changeInInventory: YearlyFinancialData
+  grossMargins: YearlyFinancialData
+  employeeBenefitExpenses: YearlyFinancialData
+  otherExpenses: YearlyFinancialData
+  ebitda: YearlyFinancialData
+  opm: YearlyFinancialData
+  otherIncome: YearlyFinancialData
+  financeCost: YearlyFinancialData
+  depreciation: YearlyFinancialData
+  ebit: YearlyFinancialData
+  ebitMargins: YearlyFinancialData
+  pbt: YearlyFinancialData
+  pbtMargins: YearlyFinancialData
+  tax: YearlyFinancialData
+  pat: YearlyFinancialData
+  npm: YearlyFinancialData
+  eps: YearlyFinancialData
+}
+
+interface BalanceSheetData {
+  totalAssets: YearlyFinancialData
+  totalLiabilities: YearlyFinancialData
+  shareholderEquity: YearlyFinancialData
+  longTermDebt: YearlyFinancialData
+  shortTermDebt: YearlyFinancialData
+  cash: YearlyFinancialData
+  inventory: YearlyFinancialData
+  receivables: YearlyFinancialData
+}
+
+interface CashFlowData {
+  operatingCashFlow: YearlyFinancialData
+  investingCashFlow: YearlyFinancialData
+  financingCashFlow: YearlyFinancialData
+  freeCashFlow: YearlyFinancialData
+  capex: YearlyFinancialData
+}
+
+interface ShareholdingPatternData {
+  promoterHolding: YearlyFinancialData
+  publicHolding: YearlyFinancialData
+  institutionalHolding: YearlyFinancialData
+  mutualFunds: YearlyFinancialData
+  foreignInstitutional: YearlyFinancialData
+}
+
 interface ShareFormData {
   logo: string
   sharesName: string
@@ -47,6 +107,14 @@ interface ShareFormData {
   bookValue: number
   faceValue: number
   totalShares: number
+  incomeStatement: IncomeStatementData
+  balanceSheet: BalanceSheetData
+  cashFlow: CashFlowData
+  shareholdingPattern: ShareholdingPatternData
+  seoTitle: string
+  seoDescription: string
+  seoKeywords: string[]
+  slug: string
 }
 
 interface NewsUpdate {
@@ -76,6 +144,8 @@ export default function EditSharePage() {
   const params = useParams()
   const shareId = params.id as string
 
+  const [newKeyword, setNewKeyword] = useState("")
+
   const [formData, setFormData] = useState<ShareFormData>({
     logo: "",
     sharesName: "",
@@ -102,7 +172,60 @@ export default function EditSharePage() {
     bookValue: 0,
     faceValue: 10,
     totalShares: 0,
+    incomeStatement: {
+      revenue: {},
+      costOfMaterialConsumed: {},
+      changeInInventory: {},
+      grossMargins: {},
+      employeeBenefitExpenses: {},
+      otherExpenses: {},
+      ebitda: {},
+      opm: {},
+      otherIncome: {},
+      financeCost: {},
+      depreciation: {},
+      ebit: {},
+      ebitMargins: {},
+      pbt: {},
+      pbtMargins: {},
+      tax: {},
+      pat: {},
+      npm: {},
+      eps: {},
+    },
+    balanceSheet: {
+      totalAssets: {},
+      totalLiabilities: {},
+      shareholderEquity: {},
+      longTermDebt: {},
+      shortTermDebt: {},
+      cash: {},
+      inventory: {},
+      receivables: {},
+    },
+    cashFlow: {
+      operatingCashFlow: {},
+      investingCashFlow: {},
+      financingCashFlow: {},
+      freeCashFlow: {},
+      capex: {},
+    },
+    shareholdingPattern: {
+      promoterHolding: {},
+      publicHolding: {},
+      institutionalHolding: {},
+      mutualFunds: {},
+      foreignInstitutional: {},
+    },
+    seoTitle: "",
+    seoDescription: "",
+    seoKeywords: [],
+    slug: "",
   })
+
+  const [selectedYear, setSelectedYear] = useState<string>("2024")
+  const availableYears = ["2020", "2021", "2022", "2023", "2024", "2025"]
+
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -144,6 +267,31 @@ export default function EditSharePage() {
       const shareDoc = await getDoc(doc(db, "shares", shareId))
       if (shareDoc.exists()) {
         const shareData = shareDoc.data()
+
+        // Normalize legacy income keys and ensure all fields exist
+        const income = (shareData.incomeStatement || {}) as any
+        const normalizedIncome: IncomeStatementData = {
+          revenue: income.revenue || {},
+          costOfMaterialConsumed: income.costOfMaterialConsumed || {},
+          changeInInventory: income.changeInInventory || {},
+          grossMargins: income.grossMargins || income.grossMargin || {},
+          employeeBenefitExpenses: income.employeeBenefitExpenses || {},
+          otherExpenses: income.otherExpenses || {},
+          ebitda: income.ebitda || {},
+          opm: income.opm || income.operatingMargin || {},
+          otherIncome: income.otherIncome || {},
+          financeCost: income.financeCost || {},
+          depreciation: income.depreciation || {},
+          ebit: income.ebit || {},
+          ebitMargins: income.ebitMargins || {},
+          pbt: income.pbt || {},
+          pbtMargins: income.pbtMargins || {},
+          tax: income.tax || {},
+          pat: income.pat || {},
+          npm: income.npm || income.netProfitMargin || {},
+          eps: income.eps || {},
+        }
+
         setFormData({
           logo: shareData.logo || "",
           sharesName: shareData.sharesName || "",
@@ -170,6 +318,35 @@ export default function EditSharePage() {
           bookValue: shareData.bookValue || 0,
           faceValue: shareData.faceValue || 10,
           totalShares: shareData.totalShares || 0,
+          incomeStatement: normalizedIncome,
+          balanceSheet: shareData.balanceSheet || {
+            totalAssets: {},
+            totalLiabilities: {},
+            shareholderEquity: {},
+            longTermDebt: {},
+            shortTermDebt: {},
+            cash: {},
+            inventory: {},
+            receivables: {},
+          },
+          cashFlow: shareData.cashFlow || {
+            operatingCashFlow: {},
+            investingCashFlow: {},
+            financingCashFlow: {},
+            freeCashFlow: {},
+            capex: {},
+          },
+          shareholdingPattern: shareData.shareholdingPattern || {
+            promoterHolding: {},
+            publicHolding: {},
+            institutionalHolding: {},
+            mutualFunds: {},
+            foreignInstitutional: {},
+          },
+          seoTitle: shareData.seoTitle || "",
+          seoDescription: shareData.seoDescription || "",
+          seoKeywords: shareData.seoKeywords || [],
+          slug: shareData.slug || (shareData.sharesName ? generateSlug(shareData.sharesName) : ""),
         })
 
         await fetchNewsUpdates()
@@ -292,9 +469,45 @@ export default function EditSharePage() {
   }
 
   const handleInputChange = (field: keyof ShareFormData, value: string | number) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value }
+      if (field === "sharesName") {
+        const v = (value as string) || ""
+        next.slug = v ? generateSlug(v) : prev.slug
+        if (!prev.seoTitle || prev.seoTitle.includes("Unlisted Share Details")) {
+          next.seoTitle = v ? `${v} - Unlisted Share Details & Price` : prev.seoTitle
+        }
+      }
+      return next
+    })
+    setError(null)
+    setSuccess(null)
+  }
+
+  const addKeyword = () => {
+    if (!newKeyword.trim()) return
+    setFormData((prev) => ({ ...prev, seoKeywords: [...prev.seoKeywords, newKeyword.trim()] }))
+    setNewKeyword("")
+  }
+  const removeKeyword = (index: number) => {
+    setFormData((prev) => ({ ...prev, seoKeywords: prev.seoKeywords.filter((_, i) => i !== index) }))
+  }
+
+  const handleFinancialDataChange = (
+    section: keyof Pick<ShareFormData, "incomeStatement" | "balanceSheet" | "cashFlow" | "shareholdingPattern">,
+    field: string,
+    year: string,
+    value: number,
+  ) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: value,
+      [section]: {
+        ...prev[section],
+        [field]: {
+          ...(prev[section] as any)[field],
+          [year]: value,
+        },
+      },
     }))
     setError(null)
     setSuccess(null)
@@ -321,6 +534,18 @@ export default function EditSharePage() {
       }
       if (formData.isinNumber && !/^[A-Z]{2}[A-Z0-9]{9}[0-9]{1}$/.test(formData.isinNumber)) {
         throw new Error("ISIN number must be in format: INE0OTC01025")
+      }
+      if (!formData.slug.trim()) {
+        throw new Error("URL Slug is required")
+      }
+      if (!formData.seoTitle.trim()) {
+        throw new Error("SEO Title is required")
+      }
+      if (formData.seoTitle.length > 60) {
+        throw new Error("SEO Title cannot exceed 60 characters")
+      }
+      if (formData.seoDescription.length > 160) {
+        throw new Error("SEO Description cannot exceed 160 characters")
       }
 
       await updateDoc(doc(db, "shares", shareId), {
@@ -349,6 +574,14 @@ export default function EditSharePage() {
         bookValue: formData.bookValue,
         faceValue: formData.faceValue,
         totalShares: formData.totalShares,
+        incomeStatement: formData.incomeStatement,
+        balanceSheet: formData.balanceSheet,
+        cashFlow: formData.cashFlow,
+        shareholdingPattern: formData.shareholdingPattern,
+        seoTitle: formData.seoTitle,
+        seoDescription: formData.seoDescription,
+        seoKeywords: formData.seoKeywords,
+        slug: formData.slug,
         updatedAt: new Date(),
         updatedBy: user.uid,
       })
@@ -399,10 +632,14 @@ export default function EditSharePage() {
       </div>
 
       <Tabs defaultValue="share-details" className="max-w-6xl">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="share-details">Share Details</TabsTrigger>
+          <TabsTrigger value="income-statement">Income Statement</TabsTrigger>
+          <TabsTrigger value="balance-sheet">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="cash-flow">Cash Flow</TabsTrigger>
+          <TabsTrigger value="shareholding">Shareholding</TabsTrigger>
           <TabsTrigger value="news-updates">News & Updates</TabsTrigger>
-          <TabsTrigger value="peer-comparison">Peer Comparison</TabsTrigger>
+          <TabsTrigger value="meta-seo">Meta / SEO</TabsTrigger>
         </TabsList>
 
         <TabsContent value="share-details">
@@ -567,7 +804,6 @@ export default function EditSharePage() {
                         id="currentPrice"
                         type="number"
                         step="0.01"
-                        min="0"
                         placeholder="325.00"
                         value={formData.currentPrice || ""}
                         onChange={(e) => handleInputChange("currentPrice", Number.parseFloat(e.target.value) || 0)}
@@ -613,12 +849,11 @@ export default function EditSharePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="bookValue">Book Value (₹)</Label>
+                      <Label htmlFor="bookValue">Book Value (₹) *Can be negative</Label>
                       <Input
                         id="bookValue"
                         type="number"
                         step="0.01"
-                        min="0"
                         placeholder="66.46"
                         value={formData.bookValue || ""}
                         onChange={(e) => handleInputChange("bookValue", Number.parseFloat(e.target.value) || 0)}
@@ -699,12 +934,11 @@ export default function EditSharePage() {
                   <h3 className="text-lg font-semibold">Financial Metrics</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="peRatio">P/E Ratio</Label>
+                      <Label htmlFor="peRatio">P/E Ratio *Can be negative</Label>
                       <Input
                         id="peRatio"
                         type="number"
                         step="0.01"
-                        min="0"
                         placeholder="57.02"
                         value={formData.peRatio || ""}
                         onChange={(e) => handleInputChange("peRatio", Number.parseFloat(e.target.value) || 0)}
@@ -712,12 +946,11 @@ export default function EditSharePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="pbRatio">P/B Ratio</Label>
+                      <Label htmlFor="pbRatio">P/B Ratio *Can be negative</Label>
                       <Input
                         id="pbRatio"
                         type="number"
                         step="0.01"
-                        min="0"
                         placeholder="4.89"
                         value={formData.pbRatio || ""}
                         onChange={(e) => handleInputChange("pbRatio", Number.parseFloat(e.target.value) || 0)}
@@ -738,13 +971,11 @@ export default function EditSharePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="roe">ROE (%)</Label>
+                      <Label htmlFor="roe">ROE (%) *Can be negative</Label>
                       <Input
                         id="roe"
                         type="number"
                         step="0.01"
-                        min="0"
-                        max="100"
                         placeholder="8.76"
                         value={formData.roe || ""}
                         onChange={(e) => handleInputChange("roe", Number.parseFloat(e.target.value) || 0)}
@@ -783,6 +1014,821 @@ export default function EditSharePage() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="income-statement">
+          <Card>
+            <CardHeader>
+              <CardTitle>Income Statement</CardTitle>
+              <CardDescription>Year-wise P&L data for comprehensive financial analysis</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="year-select">Select Year:</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Revenue */}
+                <div className="space-y-2">
+                  <Label>Revenue (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.revenue[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "revenue",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Cost of Material Consumed */}
+                <div className="space-y-2">
+                  <Label>Cost of Material Consumed (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.costOfMaterialConsumed[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "costOfMaterialConsumed",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Change in Inventory */}
+                <div className="space-y-2">
+                  <Label>Change in Inventory (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.changeInInventory[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "changeInInventory",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Gross Margins */}
+                <div className="space-y-2">
+                  <Label>Gross Margins (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.grossMargins[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "grossMargins",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Employee Benefit Expenses */}
+                <div className="space-y-2">
+                  <Label>Employee Benefit Expenses (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.employeeBenefitExpenses[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "employeeBenefitExpenses",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Other Expenses */}
+                <div className="space-y-2">
+                  <Label>Other Expenses (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.otherExpenses[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "otherExpenses",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* EBITDA */}
+                <div className="space-y-2">
+                  <Label>EBITDA (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.ebitda[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "ebitda",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* OPM */}
+                <div className="space-y-2">
+                  <Label>OPM (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.opm[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "opm",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Other Income */}
+                <div className="space-y-2">
+                  <Label>Other Income (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.otherIncome[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "otherIncome",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Finance Cost */}
+                <div className="space-y-2">
+                  <Label>Finance Cost (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.financeCost[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "financeCost",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* D&A */}
+                <div className="space-y-2">
+                  <Label>D&A (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.depreciation[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "depreciation",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* EBIT */}
+                <div className="space-y-2">
+                  <Label>EBIT (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.ebit[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "ebit",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* EBIT Margins */}
+                <div className="space-y-2">
+                  <Label>EBIT Margins (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.ebitMargins[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "ebitMargins",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* PBT */}
+                <div className="space-y-2">
+                  <Label>PBT (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.pbt[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "pbt",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* PBT Margins */}
+                <div className="space-y-2">
+                  <Label>PBT Margins (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.pbtMargins[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "pbtMargins",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Tax */}
+                <div className="space-y-2">
+                  <Label>Tax (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.tax[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "tax",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* PAT */}
+                <div className="space-y-2">
+                  <Label>PAT (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.pat[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "pat",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* NPM */}
+                <div className="space-y-2">
+                  <Label>NPM (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.npm[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "npm",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                {/* EPS */}
+                <div className="space-y-2">
+                  <Label>EPS (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.incomeStatement.eps[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "incomeStatement",
+                        "eps",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="balance-sheet">
+          <Card>
+            <CardHeader>
+              <CardTitle>Balance Sheet</CardTitle>
+              <CardDescription>Year-wise assets and liabilities data</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="year-select">Select Year:</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Total Assets (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.totalAssets[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "totalAssets",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Total Liabilities (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.totalLiabilities[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "totalLiabilities",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Shareholder Equity (₹ Cr.) *Can be negative</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.shareholderEquity[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "shareholderEquity",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Long Term Debt (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.longTermDebt[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "longTermDebt",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Short Term Debt (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.shortTermDebt[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "shortTermDebt",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Cash (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.cash[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "cash",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Inventory (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.inventory[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "inventory",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Receivables (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.balanceSheet.receivables[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "balanceSheet",
+                        "receivables",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cash-flow">
+          <Card>
+            <CardHeader>
+              <CardTitle>Cash Flow Statement</CardTitle>
+              <CardDescription>Year-wise cash flow data from operations, investments, and financing</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="year-select">Select Year:</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Operating Cash Flow (₹ Cr.) *Can be negative</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.cashFlow.operatingCashFlow[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "cashFlow",
+                        "operatingCashFlow",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Investing Cash Flow (₹ Cr.) *Can be negative</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.cashFlow.investingCashFlow[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "cashFlow",
+                        "investingCashFlow",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Financing Cash Flow (₹ Cr.) *Can be negative</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.cashFlow.financingCashFlow[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "cashFlow",
+                        "financingCashFlow",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Free Cash Flow (₹ Cr.) *Can be negative</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.cashFlow.freeCashFlow[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "cashFlow",
+                        "freeCashFlow",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>CAPEX (₹ Cr.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.cashFlow.capex[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "cashFlow",
+                        "capex",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="shareholding">
+          <Card>
+            <CardHeader>
+              <CardTitle>Shareholding Pattern</CardTitle>
+              <CardDescription>Year-wise shareholding breakdown by investor categories</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="year-select">Select Year:</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Promoter Holding (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="0.00"
+                    value={formData.shareholdingPattern.promoterHolding[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "shareholdingPattern",
+                        "promoterHolding",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Public Holding (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="0.00"
+                    value={formData.shareholdingPattern.publicHolding[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "shareholdingPattern",
+                        "publicHolding",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Institutional Holding (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="0.00"
+                    value={formData.shareholdingPattern.institutionalHolding[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "shareholdingPattern",
+                        "institutionalHolding",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Mutual Funds (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="0.00"
+                    value={formData.shareholdingPattern.mutualFunds[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "shareholdingPattern",
+                        "mutualFunds",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Foreign Institutional (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="0.00"
+                    value={formData.shareholdingPattern.foreignInstitutional[selectedYear] || ""}
+                    onChange={(e) =>
+                      handleFinancialDataChange(
+                        "shareholdingPattern",
+                        "foreignInstitutional",
+                        selectedYear,
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -910,142 +1956,78 @@ export default function EditSharePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="peer-comparison">
+        <TabsContent value="meta-seo">
           <Card>
             <CardHeader>
-              <CardTitle>Peer Comparison</CardTitle>
-              <CardDescription>Manage competitor data for benchmarking</CardDescription>
+              <CardTitle>SEO Settings</CardTitle>
+              <CardDescription>Optimize the share detail page for search engines</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Add Peer Company</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="peerCompanyName">Company Name *</Label>
-                    <Input
-                      id="peerCompanyName"
-                      placeholder="Enter company name"
-                      value={newPeerComparison.companyName}
-                      onChange={(e) => setNewPeerComparison((prev) => ({ ...prev, companyName: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="peerCurrentPrice">Current Price (₹)</Label>
-                    <Input
-                      id="peerCurrentPrice"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newPeerComparison.currentPrice || ""}
-                      onChange={(e) =>
-                        setNewPeerComparison((prev) => ({
-                          ...prev,
-                          currentPrice: Number.parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="peerMarketCap">Market Cap (₹ Cr.)</Label>
-                    <Input
-                      id="peerMarketCap"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newPeerComparison.marketCap || ""}
-                      onChange={(e) =>
-                        setNewPeerComparison((prev) => ({ ...prev, marketCap: Number.parseFloat(e.target.value) || 0 }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="peerPeRatio">P/E Ratio</Label>
-                    <Input
-                      id="peerPeRatio"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newPeerComparison.peRatio || ""}
-                      onChange={(e) =>
-                        setNewPeerComparison((prev) => ({ ...prev, peRatio: Number.parseFloat(e.target.value) || 0 }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="peerPbRatio">P/B Ratio</Label>
-                    <Input
-                      id="peerPbRatio"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newPeerComparison.pbRatio || ""}
-                      onChange={(e) =>
-                        setNewPeerComparison((prev) => ({ ...prev, pbRatio: Number.parseFloat(e.target.value) || 0 }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="peerRoe">ROE (%)</Label>
-                    <Input
-                      id="peerRoe"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newPeerComparison.roe || ""}
-                      onChange={(e) =>
-                        setNewPeerComparison((prev) => ({ ...prev, roe: Number.parseFloat(e.target.value) || 0 }))
-                      }
-                    />
-                  </div>
-                </div>
-                <Button onClick={addPeerComparison} className="w-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Peer Company
-                </Button>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="slug">URL Slug</Label>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => handleInputChange("slug", e.target.value)}
+                  placeholder="company-name-unlisted-shares"
+                />
+                <p className="text-sm text-muted-foreground">
+                  URL will be: /shares/{"{"}formData.slug{"}"}
+                </p>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Peer Companies ({peerComparisons.length})</h3>
-                {peerComparisons.length === 0 ? (
-                  <p className="text-muted-foreground">No peer companies added yet.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-border">
-                      <thead>
-                        <tr className="bg-muted">
-                          <th className="border border-border p-2 text-left">Company</th>
-                          <th className="border border-border p-2 text-right">Price (₹)</th>
-                          <th className="border border-border p-2 text-right">Market Cap</th>
-                          <th className="border border-border p-2 text-right">P/E</th>
-                          <th className="border border-border p-2 text-right">P/B</th>
-                          <th className="border border-border p-2 text-right">ROE</th>
-                          <th className="border border-border p-2 text-center">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {peerComparisons.map((peer) => (
-                          <tr key={peer.id}>
-                            <td className="border border-border p-2 font-medium">{peer.companyName}</td>
-                            <td className="border border-border p-2 text-right">₹{peer.currentPrice.toFixed(2)}</td>
-                            <td className="border border-border p-2 text-right">₹{peer.marketCap.toFixed(2)} Cr</td>
-                            <td className="border border-border p-2 text-right">{peer.peRatio.toFixed(2)}</td>
-                            <td className="border border-border p-2 text-right">{peer.pbRatio.toFixed(2)}</td>
-                            <td className="border border-border p-2 text-right">{peer.roe.toFixed(2)}%</td>
-                            <td className="border border-border p-2 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => peer.id && deletePeerComparison(peer.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+              <div className="space-y-2">
+                <Label htmlFor="seoTitle">SEO Title</Label>
+                <Input
+                  id="seoTitle"
+                  value={formData.seoTitle}
+                  onChange={(e) => handleInputChange("seoTitle", e.target.value)}
+                  placeholder="Company Name - Unlisted Share Price, Details & Updates"
+                  maxLength={60}
+                />
+                <p className="text-sm text-muted-foreground">
+                  {"{"}formData.seoTitle.length{"}"}/60 characters
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="seoDescription">SEO Description</Label>
+                <Textarea
+                  id="seoDescription"
+                  value={formData.seoDescription}
+                  onChange={(e) => handleInputChange("seoDescription", e.target.value)}
+                  placeholder="Get complete details about this unlisted share including price, company info, financials, and latest updates."
+                  maxLength={160}
+                  rows={3}
+                />
+                <p className="text-sm text-muted-foreground">
+                  {"{"}formData.seoDescription.length{"}"}/160 characters
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>SEO Keywords</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newKeyword}
+                    onChange={(e) => setNewKeyword(e.target.value)}
+                    placeholder="Enter keyword"
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addKeyword())}
+                  />
+                  <Button type="button" onClick={addKeyword}>
+                    Add
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.seoKeywords.map((keyword, index) => (
+                    <Badge key={index} variant="outline" className="flex items-center gap-1">
+                      {keyword}
+                      <button type="button" onClick={() => removeKeyword(index)} aria-label={`Remove ${keyword}`}>
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { signOut } from "firebase/auth"
-import { auth, db } from "@/lib/firebase"
+import { auth, db } from "@/lib/firebase" 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Edit, DollarSign, ExternalLink, FileText } from "lucide-react"
+import { Plus, Edit, DollarSign, ExternalLink, FileText, IndianRupee } from "lucide-react"
 import Link from "next/link"
 import { collection, getDocs, query, orderBy, limit, where, doc, updateDoc } from "firebase/firestore"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -442,7 +442,7 @@ export default function ManageSharesPage() {
                           </Link>
                           <Link href={`/dashboard/shares/${share.id}/update-price`}>
                             <Button variant="outline" size="sm">
-                              <DollarSign className="h-4 w-4" />
+                              <IndianRupee className="h-4 w-4" />
                             </Button>
                           </Link>
                         </div>
