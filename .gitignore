@@ -3,7 +3,12 @@
 # dependencies
 /node_modules
 .firebase/
-
+.firebase/
+.firebase/**
+functions/.next/
+functions/node_modules/
+.firebase/*/functions/.next/
+.firebase/*/functions/node_modules/
 # next.js
 /.next/
 /out/
