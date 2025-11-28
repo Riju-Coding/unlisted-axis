@@ -285,10 +285,10 @@ export default function MarketsPage() {
                         transition={{ duration: 0.4, delay: i * 0.1 }}
                       >
                         <td className="px-6 py-4">
-                          <Link href={`/markets/${createSlug(share.sharesName)}?id=${share.id}`}>
-                            <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
+                          <div className="flex items-center space-x-3">
+                            <Link href={`/markets/${createSlug(share.sharesName)}?id=${share.id}`}>
                               <div
-                                className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center"
+                                className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer"
                                 style={{ backgroundColor: colors.neutral.light }}
                               >
                                 {share.logo ? (
@@ -308,16 +308,33 @@ export default function MarketsPage() {
                                   </div>
                                 )}
                               </div>
-                              <div>
-                                <div className="font-semibold hover:underline" style={{ color: colors.text.primary }}>
-                                  {share.sharesName}
-                                </div>
-                                <div className="text-sm" style={{ color: colors.text.secondary }}>
-                                  {truncateWords(share.description, 10)}
-                                </div>
+                            </Link>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <Link href={`/markets/${createSlug(share.sharesName)}?id=${share.id}`}>
+                                  <span className="font-semibold hover:underline cursor-pointer" style={{ color: colors.text.primary }}>
+                                    {share.sharesName}
+                                  </span>
+                                </Link>
+                                <Link href={`/markets/${createSlug(share.sharesName)}?id=${share.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    style={{
+                                      color: colors.primary.main,
+                                      borderColor: colors.primary.light,
+                                    }}
+                                  >
+                                    Read more →
+                                  </Button>
+                                </Link>
+                              </div>
+                              <div className="text-sm" style={{ color: colors.text.secondary }}>
+                                {truncateWords(share.description, 10)}
                               </div>
                             </div>
-                          </Link>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <Badge

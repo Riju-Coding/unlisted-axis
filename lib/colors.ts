@@ -8,7 +8,7 @@ export const themeColors = {
     primary: "#3A59D1", // Deep blue - main brand color
     secondary: "#3D90D7", // Medium blue - secondary actions
     accent: "#7AC6D2", // Light blue-teal - accents and highlights
-    success: "#B5FCCD", // Light green - success states and positive actions
+    success: "#06fa58ff", // Light green - success states and positive actions
     error: "#DC2626", // Red for decrease/error states
   
     // Derived colors for different use cases

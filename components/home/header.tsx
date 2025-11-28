@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -84,34 +85,34 @@ export default function Header() {
         }}
       >
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2 group" aria-label="Unlisted Axis Home">
-            <motion.div
-              className="relative w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`,
-                boxShadow: `0 4px 14px 0 ${themeColors.primary}40`,
-              }}
-              whileHover={{
-                scale: 1.1,
-                rotate: [0, -5, 5, 0],
-                boxShadow: `0 20px 25px -5px ${themeColors.primary}66, 0 10px 10px -5px ${themeColors.primary}11`,
-              }}
-              transition={{ type: "spring", stiffness: 400, damping: 10 }}
-            >
-              <TrendingUp className="w-6 h-6 text-white drop-shadow-sm" />
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-xl"
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-              />
-            </motion.div>
-            <motion.span
-              className="text-xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-100 dark:to-white bg-clip-text text-transparent"
-              whileHover={{ scale: 1.05 }}
-            >
-              Unlisted Axis
-            </motion.span>
-          </Link>
+         <Link href="/" className="flex items-center space-x-2 group" aria-label="Unlisted Axis Home">
+  <motion.div
+    className="relative w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
+    style={{
+      background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`,
+      boxShadow: `0 4px 14px 0 ${themeColors.primary}40`,
+    }}
+    whileHover={{
+      scale: 1.1,
+      rotate: [0, -5, 5, 0],
+      boxShadow: `0 20px 25px -5px ${themeColors.primary}66, 0 10px 10px -5px ${themeColors.primary}11`,
+    }}
+    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+  >
+    <TrendingUp className="w-6 h-6 text-white drop-shadow-sm" />
+  </motion.div>
+
+  <motion.div whileHover={{ scale: 1.05 }} className="h-8 w-auto ml-10 mb-5">
+    <Image 
+      src="/logo.png"
+      alt="Unlisted Axis Logo"
+      width={60}
+      height={20}
+      className="object-contain"
+    />
+  </motion.div>
+</Link>
+
 
           <nav className="hidden md:flex items-center space-x-1" role="navigation" aria-label="Main navigation">
             {navigationItems.map((item, index) => (
@@ -146,7 +147,7 @@ export default function Header() {
 
           <div className="hidden md:flex items-center space-x-3">
             <div className="p-1 rounded-lg bg-gray-100/50 dark:bg-gray-800/50">
-              <ThemeToggle />
+             
             </div>
             {/* <Link href="/login">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>

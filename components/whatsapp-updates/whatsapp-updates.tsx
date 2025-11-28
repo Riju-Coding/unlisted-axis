@@ -221,42 +221,7 @@ export default function WhatsAppUpdatesPage() {
             </div>
 
             {/* Testimonial */}
-            <div
-              className="rounded-xl p-6"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary.light} 0%, ${colors.secondary.light} 100%)`,
-                borderColor: colors.primary.main,
-                borderWidth: "1px",
-              }}
-            >
-              <div className="flex items-center gap-1 mb-3">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" style={{ color: colors.success.main }} />
-                ))}
-              </div>
-              <p className="italic mb-3" style={{ color: colors.text.secondary }}>
-                "These daily updates helped me identify a 300% return opportunity in unlisted shares. The insights are
-                incredibly valuable!"
-              </p>
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                  style={{
-                    background: `linear-gradient(135deg, ${colors.primary.main} 0%, ${colors.secondary.main} 100%)`,
-                  }}
-                >
-                  RK
-                </div>
-                <div>
-                  <p className="font-medium" style={{ color: colors.text.primary }}>
-                    Rajesh Kumar
-                  </p>
-                  <p className="text-sm" style={{ color: colors.text.secondary }}>
-                    Investor since 2022
-                  </p>
-                </div>
-              </div>
-            </div>
+            
           </div>
 
           {/* Form Section */}

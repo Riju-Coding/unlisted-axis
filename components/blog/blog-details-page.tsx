@@ -263,13 +263,13 @@ export default function BlogDetailsPage({ slug }: BlogDetailsPageProps) {
         <section className="py-8 px-4">
           <div className="container mx-auto max-w-4xl">
             <motion.div
-              className="prose prose-lg dark:prose-invert max-w-none"
+              className="prose prose-lg dark:prose-invert max-w-none [&_*]:!text-black [&_*]:dark:!text-black"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               <div
-                className="text-gray-800 dark:text-gray-200 leading-relaxed"
+                className="text-black dark:text-black leading-relaxed [&_*]:!text-black [&_*]:dark:!text-black"
                 dangerouslySetInnerHTML={{ __html: post.content }}
               />
             </motion.div>
