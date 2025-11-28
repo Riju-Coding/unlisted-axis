@@ -17,7 +17,13 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { ImageUploader } from "@/components/image-uploader"
-import { RichTextEditor } from "@/components/rich-text-editor"
+import dynamic from "next/dynamic"
+
+
+const QuillEditor = dynamic(() => import("@/components/rich-text-editor"), {
+  ssr: false,
+});
+
 import {
   ArrowLeft,
   Save,
@@ -389,11 +395,7 @@ export default function CreateIPOPage() {
 
             <div className="space-y-2">
               <Label htmlFor="description">Company Description</Label>
-              <RichTextEditor
-                value={formData.description}
-                onChange={(value) => handleInputChange("description", value)}
-                placeholder="Enter detailed company description..."
-              />
+              <QuillEditor />
             </div>
           </CardContent>
         </Card>
