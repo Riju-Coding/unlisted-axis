@@ -15,13 +15,17 @@ import { ArrowLeft, Eye, Save, Send } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ExclamationTriangleIcon, CheckCircledIcon } from "@radix-ui/react-icons"
-const RichTextEditor = dynamic(() => import("@/components/rich-text-editor"), { ssr: false })
+
 import { ImageUploader } from "@/components/image-uploader"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import ClientWrapper from "@/components/ClientWrapper"
 import dynamic from "next/dynamic"
-import QuillEditor from "@/components/rich-text-editor"
+
+
+const QuillEditor = dynamic(() => import("@/components/rich-text-editor"), {
+  ssr: false,
+});
 
 interface BlogFormData {
   title: string
