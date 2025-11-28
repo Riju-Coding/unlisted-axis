@@ -15,7 +15,12 @@ import { ArrowLeft, Eye, Save, Send } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ExclamationTriangleIcon, CheckCircledIcon } from "@radix-ui/react-icons"
-import { RichTextEditor } from "@/components/rich-text-editor"
+import dynamic from "next/dynamic"
+
+
+const QuillEditor = dynamic(() => import("@/components/rich-text-editor"), {
+  ssr: false,
+});
 import { ImageUploader } from "@/components/image-uploader"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
@@ -304,7 +309,7 @@ export default function EditBlogPage() {
                 <CardDescription>Update your blog post content</CardDescription>
               </CardHeader>
               <CardContent>
-                <RichTextEditor value={formData.content} onChange={handleContentChange} />
+                <QuillEditor value={formData.content} onChange={handleContentChange} />
               </CardContent>
             </Card>
           </div>
