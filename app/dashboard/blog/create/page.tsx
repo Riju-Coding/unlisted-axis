@@ -15,10 +15,13 @@ import { ArrowLeft, Eye, Save, Send } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ExclamationTriangleIcon, CheckCircledIcon } from "@radix-ui/react-icons"
-import { RichTextEditor } from "@/components/rich-text-editor"
+const RichTextEditor = dynamic(() => import("@/components/rich-text-editor"), { ssr: false })
 import { ImageUploader } from "@/components/image-uploader"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
+import ClientWrapper from "@/components/ClientWrapper"
+import dynamic from "next/dynamic"
+import QuillEditor from "@/components/rich-text-editor"
 
 interface BlogFormData {
   title: string
@@ -281,7 +284,12 @@ export default function CreateBlogPage() {
                 <CardDescription>Write your blog post content</CardDescription>
               </CardHeader>
               <CardContent>
-                <RichTextEditor value={formData.content} onChange={handleContentChange} />
+                <ClientWrapper>
+                  <QuillEditor  />
+
+     
+                </ClientWrapper>
+                
               </CardContent>
             </Card>
           </div>
