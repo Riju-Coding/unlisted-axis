@@ -1,9 +1,19 @@
 "use client"
+
+import type React from "react"
+
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Calendar, Award } from "lucide-react"
 import { colors } from "@/lib/colors"
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { collection, addDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { CheckCircle, Send } from "lucide-react"
 
 const heroVariants = {
   badge: {
@@ -63,7 +73,7 @@ const chartPoints = [
   { x: 145, y: 30 },
 ]
 
-const createPath = (points) => {
+const createPath = (points: any[]) => {
   return points.reduce((path, point, index) => {
     if (index === 0) {
       return `M ${point.x} ${point.y}`
@@ -72,41 +82,45 @@ const createPath = (points) => {
   }, "")
 }
 
-// Company logos data
-const companyLogos = [
-  {
-    name: "OYO",
-    position: { top: "15%", left: "8%" },
-    gradient: `linear-gradient(to bottom right, ${colors.primary.main}, ${colors.primary.dark})`,
-  },
-  {
-    name: "HDFC",
-    position: { top: "25%", right: "12%" },
-    gradient: `linear-gradient(to bottom right, ${colors.secondary.main}, ${colors.secondary.dark})`,
-  },
-  {
-    name: "BYJU'S",
-    position: { top: "60%", left: "15%" },
-    gradient: `linear-gradient(to bottom right, ${colors.accent.main}, ${colors.accent.dark})`,
-  },
-  {
-    name: "Zomato",
-    position: { top: "70%", right: "20%" },
-    gradient: `linear-gradient(to bottom right, ${colors.success.main}, ${colors.success.dark})`,
-  },
-  {
-    name: "Paytm",
-    position: { top: "40%", left: "5%" },
-    gradient: `linear-gradient(to bottom right, ${colors.secondary.light}, ${colors.secondary.main})`,
-  },
-  {
-    name: "Swiggy",
-    position: { top: "55%", right: "8%" },
-    gradient: `linear-gradient(to bottom right, ${colors.primary.light}, ${colors.primary.main})`,
-  },
-]
-
 export default function UnlistedHero() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [enquiryForm, setEnquiryForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+
+  const handleEnquiryChange = (field: string, value: string) => {
+    setEnquiryForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleEnquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    try {
+      await addDoc(collection(db, "enquiries"), {
+        name: enquiryForm.name,
+        email: enquiryForm.email,
+        phone: enquiryForm.phone,
+        source: "home page query",
+        createdAt: new Date(),
+        status: "pending",
+      })
+      setSubmitSuccess(true)
+      setEnquiryForm({ name: "", email: "", phone: "" })
+      setTimeout(() => {
+        setSubmitSuccess(false)
+        setIsModalOpen(false)
+      }, 2000)
+    } catch (error) {
+      console.error("Error submitting enquiry:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <section className="py-24 px-4 relative overflow-hidden min-h-screen flex items-center" role="banner">
       <div className="container mx-auto text-center relative z-10">
@@ -239,34 +253,33 @@ export default function UnlistedHero() {
               </motion.div>
             </Link>
 
-            <Link href="/ipos">
-              <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} className="group">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="px-10 py-6 text-lg font-semibold bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl border-2"
-                  style={{
-                    borderColor: colors.secondary.light,
-                    color: colors.secondary.dark,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${colors.secondary.main}10`
-                    e.currentTarget.style.borderColor = colors.secondary.main
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.5)"
-                    e.currentTarget.style.borderColor = colors.secondary.light
-                  }}
-                >
-                  <span className="flex items-center">
-                    View IPO Calendar
-                    <motion.div className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <Calendar className="w-4 h-4" />
-                    </motion.div>
-                  </span>
-                </Button>
-              </motion.div>
-            </Link>
+            <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} className="group">
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => setIsModalOpen(true)}
+                className="px-10 py-6 text-lg font-semibold bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl border-2"
+                style={{
+                  borderColor: colors.secondary.light,
+                  color: colors.secondary.dark,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = `${colors.secondary.main}10`
+                  e.currentTarget.style.borderColor = colors.secondary.main
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.5)"
+                  e.currentTarget.style.borderColor = colors.secondary.light
+                }}
+              >
+                <span className="flex items-center">
+                  Invest Now
+                  <motion.div className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <Calendar className="w-4 h-4" />
+                  </motion.div>
+                </span>
+              </Button>
+            </motion.div>
           </motion.div>
 
           {/* Trust indicators */}
@@ -292,6 +305,117 @@ export default function UnlistedHero() {
         </motion.div>
       </div>
 
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent
+          style={{
+            backgroundColor: `${colors.background.main}CC`,
+            borderColor: `${colors.primary.light}80`,
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: colors.text.primary }}>Get Started with Unlisted Axis</DialogTitle>
+            <DialogDescription style={{ color: colors.text.secondary }}>
+              Provide your details to start investing in exclusive unlisted shares
+            </DialogDescription>
+          </DialogHeader>
+
+          {submitSuccess ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-8"
+            >
+              <CheckCircle className="w-16 h-16 mx-auto mb-4" style={{ color: colors.success.main }} />
+              <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
+                Thank You!
+              </h3>
+              <p style={{ color: colors.text.secondary }}>We'll contact you soon with investment opportunities.</p>
+            </motion.div>
+          ) : (
+            <form onSubmit={handleEnquirySubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" style={{ color: colors.text.primary }}>
+                  Full Name *
+                </Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={enquiryForm.name}
+                  onChange={(e) => handleEnquiryChange("name", e.target.value)}
+                  required
+                  placeholder="Enter your full name"
+                  style={{
+                    borderColor: colors.primary.light,
+                    backgroundColor: `${colors.background.light}80`,
+                    color: colors.text.primary,
+                  }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email" style={{ color: colors.text.primary }}>
+                  Email Address *
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={enquiryForm.email}
+                  onChange={(e) => handleEnquiryChange("email", e.target.value)}
+                  required
+                  placeholder="Enter your email address"
+                  style={{
+                    borderColor: colors.primary.light,
+                    backgroundColor: `${colors.background.light}80`,
+                    color: colors.text.primary,
+                  }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone" style={{ color: colors.text.primary }}>
+                  Mobile Number *
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={enquiryForm.phone}
+                  onChange={(e) => handleEnquiryChange("phone", e.target.value)}
+                  required
+                  placeholder="Enter your mobile number"
+                  style={{
+                    borderColor: colors.primary.light,
+                    backgroundColor: `${colors.background.light}80`,
+                    color: colors.text.primary,
+                  }}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full"
+                style={{
+                  backgroundColor: colors.primary.main,
+                  borderColor: colors.primary.main,
+                }}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Get Started
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Clean Stock Chart Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
         <svg
@@ -306,7 +430,6 @@ export default function UnlistedHero() {
               <stop offset="100%" stopColor={colors.accent.main} stopOpacity="0.1" />
             </linearGradient>
           </defs>
-
           <motion.path
             d={createPath(chartPoints)}
             stroke="url(#chartGradient)"
@@ -316,8 +439,6 @@ export default function UnlistedHero() {
             animate={{ pathLength: 1, opacity: 1 }}
             transition={{ duration: 3, delay: 1, ease: "easeInOut" }}
           />
-
-          {/* Chart points */}
           {chartPoints.map((point, index) => (
             <motion.circle
               key={index}
@@ -332,37 +453,6 @@ export default function UnlistedHero() {
           ))}
         </svg>
       </div>
-
-      {/* Floating Company Logos */}
-      {/* {companyLogos.map((company, index) => (
-        <motion.div
-          key={company.name}
-          className="absolute hidden lg:block"
-          style={company.position}
-          initial={{ opacity: 0, scale: 0, rotate: -180 }}
-          animate={{ opacity: 0.8, scale: 1, rotate: 0 }}
-          transition={{ delay: 1.5 + index * 0.2, duration: 0.8, ease: "easeOut" }}
-        >
-          <motion.div
-            className="w-16 h-16 rounded-xl shadow-lg backdrop-blur-sm border border-white/20 flex items-center justify-center text-white font-bold text-sm"
-            style={{
-              background: company.gradient,
-            }}
-            animate={{
-              y: [0, -10, 0],
-              rotate: [0, 2, -2, 0],
-            }}
-            transition={{
-              duration: 3 + index * 0.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            }}
-            whileHover={{ scale: 1.1, rotate: 5 }}
-          >
-            {company.name}
-          </motion.div>
-        </motion.div>
-      ))} */}
 
       {/* Enhanced background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">

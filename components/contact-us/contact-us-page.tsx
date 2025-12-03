@@ -4,14 +4,17 @@ import type React from "react"
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Mail, Phone, MapPin, Clock, Send } from "lucide-react"
+import { Mail, Phone, MapPin, Clock, Send, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 import Header from "@/components/home/header"
 import Footer from "@/components/home/footer"
 import { colors } from "@/lib/colors"
+import { db } from "@/lib/firebase"
+import { collection, addDoc } from "firebase/firestore"
 import { pageVariants, staggerContainer, cardVariants } from "@/lib/animations"
 
 export default function ContactUsPage() {
@@ -22,6 +25,8 @@ export default function ContactUsPage() {
     subject: "",
     message: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -30,42 +35,64 @@ export default function ContactUsPage() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
+    setIsSubmitting(true)
+
+    try {
+      await addDoc(collection(db, "enquiries"), {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        message: formData.message,
+        source: "contact_us",
+        createdAt: new Date(),
+        status: "pending",
+      })
+
+      setSubmitSuccess(true)
+      setFormData({ name: "", email: "", phone: "", subject: "", message: "" })
+
+      // Reset success message after 3 seconds
+      setTimeout(() => setSubmitSuccess(false), 3000)
+    } catch (error) {
+      console.error("Error submitting contact form:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const contactInfo = [
     {
       icon: Mail,
       title: "Email Us",
-      details: ["info@unlistedaxis.com", "support@unlistedaxis.com"],
+      details: ["online@gfswc.com"],
       description: "Get in touch via email for any inquiries",
     },
     {
       icon: Phone,
       title: "Call Us",
-      details: ["+91 98765 43210", "+91 87654 32109"],
+      details: ["+91-9999913974", "+91-9169165959"],
       description: "Speak directly with our investment experts",
     },
     {
       icon: MapPin,
       title: "Visit Us",
-      details: ["123 Financial District", "Mumbai, Maharashtra 400001"],
+      details: ["SCO-39, 1st Floor, HUDA Market", "Sector-7, Faridabad, Haryana-121006"],
       description: "Meet us at our corporate office",
     },
     {
       icon: Clock,
       title: "Business Hours",
-      details: ["Mon - Fri: 9:00 AM - 6:00 PM", "Sat: 10:00 AM - 4:00 PM"],
+      details: ["Mon - Sat: 9:00 AM - 6:30 PM"],
       description: "We're here when you need us",
     },
   ]
 
   return (
     <motion.div
-     className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-hidden relative"
-      
+      className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-hidden relative"
       variants={pageVariants}
       initial="initial"
       animate="animate"
@@ -183,57 +210,139 @@ export default function ContactUsPage() {
                     <h3 className="text-2xl font-bold mb-4" style={{ color: colors.primary.main }}>
                       Send us a message
                     </h3>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
-                          name="name"
-                          placeholder="Your Name"
-                          value={formData.name}
-                          onChange={handleInputChange}
-                          style={{ color: colors.text.primary }}
-                        />
-                        <Input
-                          name="email"
-                          placeholder="Email Address"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          style={{ color: colors.text.primary }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
-                          name="phone"
-                          placeholder="Phone Number"
-                          value={formData.phone}
-                          onChange={handleInputChange}
-                          style={{ color: colors.text.primary }}
-                        />
-                        <Input
-                          name="subject"
-                          placeholder="Subject"
-                          value={formData.subject}
-                          onChange={handleInputChange}
-                          style={{ color: colors.text.primary }}
-                        />
-                      </div>
-                      <Textarea
-                        name="message"
-                        placeholder="Your Message"
-                        value={formData.message}
-                        onChange={handleInputChange}
-                        className="min-h-[140px]"
-                        style={{ color: colors.text.primary }}
-                      />
-                      <Button
-                        type="submit"
-                        className="w-full inline-flex items-center justify-center"
-                        style={{ backgroundColor: colors.primary.main, color: colors.text.white }}
+
+                    {submitSuccess ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="text-center py-8"
                       >
-                        <Send className="w-4 h-4 mr-2" />
-                        Send Message
-                      </Button>
-                    </form>
+                        <CheckCircle className="w-16 h-16 mx-auto mb-4" style={{ color: colors.success.main }} />
+                        <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
+                          Message Sent Successfully!
+                        </h3>
+                        <p style={{ color: colors.text.secondary }}>
+                          We'll get back to you soon with more information.
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="name" style={{ color: colors.text.primary }}>
+                              Full Name *
+                            </Label>
+                            <Input
+                              id="name"
+                              name="name"
+                              placeholder="Your Name"
+                              value={formData.name}
+                              onChange={handleInputChange}
+                              required
+                              style={{
+                                borderColor: colors.primary.light,
+                                backgroundColor: `${colors.background.light}80`,
+                                color: colors.text.primary,
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="email" style={{ color: colors.text.primary }}>
+                              Email Address *
+                            </Label>
+                            <Input
+                              id="email"
+                              name="email"
+                              placeholder="Email Address"
+                              type="email"
+                              value={formData.email}
+                              onChange={handleInputChange}
+                              required
+                              style={{
+                                borderColor: colors.primary.light,
+                                backgroundColor: `${colors.background.light}80`,
+                                color: colors.text.primary,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" style={{ color: colors.text.primary }}>
+                              Phone Number *
+                            </Label>
+                            <Input
+                              id="phone"
+                              name="phone"
+                              placeholder="Phone Number"
+                              value={formData.phone}
+                              onChange={handleInputChange}
+                              required
+                              style={{
+                                borderColor: colors.primary.light,
+                                backgroundColor: `${colors.background.light}80`,
+                                color: colors.text.primary,
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="subject" style={{ color: colors.text.primary }}>
+                              Subject *
+                            </Label>
+                            <Input
+                              id="subject"
+                              name="subject"
+                              placeholder="Subject"
+                              value={formData.subject}
+                              onChange={handleInputChange}
+                              required
+                              style={{
+                                borderColor: colors.primary.light,
+                                backgroundColor: `${colors.background.light}80`,
+                                color: colors.text.primary,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="message" style={{ color: colors.text.primary }}>
+                            Message *
+                          </Label>
+                          <Textarea
+                            id="message"
+                            name="message"
+                            placeholder="Your Message"
+                            value={formData.message}
+                            onChange={handleInputChange}
+                            required
+                            className="min-h-[140px]"
+                            style={{
+                              borderColor: colors.primary.light,
+                              backgroundColor: `${colors.background.light}80`,
+                              color: colors.text.primary,
+                            }}
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="w-full inline-flex items-center justify-center"
+                          style={{ backgroundColor: colors.primary.main, color: colors.text.white }}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4 mr-2" />
+                              Send Message
+                            </>
+                          )}
+                        </Button>
+                      </form>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -259,17 +368,20 @@ export default function ContactUsPage() {
                     <h3 className="text-2xl font-bold mb-2" style={{ color: colors.primary.main }}>
                       Office Address
                     </h3>
-                    <p className="mb-1" style={{ color: colors.text.primary }}>
-                      123 Financial District
+                    <p className="mb-1 font-semibold" style={{ color: colors.text.primary }}>
+                      SCO-39, 1st Floor, HUDA Market
                     </p>
                     <p className="mb-4" style={{ color: colors.text.secondary }}>
-                      Mumbai, Maharashtra 400001
+                      Sector-7, Faridabad, Haryana-121006
+                    </p>
+                    <p className="text-sm font-medium mb-3" style={{ color: colors.text.primary }}>
+                      Business Hours
                     </p>
                     <p className="text-sm" style={{ color: colors.text.secondary }}>
-                      Mon - Fri: 9:00 AM - 6:00 PM • Sat: 10:00 AM - 4:00 PM
+                      Mon - Sat: 9:00 AM - 6:30 PM
                     </p>
-        </div>
-      </div>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
           </div>
@@ -291,7 +403,7 @@ export default function ContactUsPage() {
               Ready to talk to our team?
             </motion.h2>
             <motion.p variants={cardVariants} className="text-xl mb-8 opacity-90">
-              Send us a message and we’ll get back within one business day.
+              Send us a message and we'll get back within one business day.
             </motion.p>
             <motion.button
               variants={cardVariants}
