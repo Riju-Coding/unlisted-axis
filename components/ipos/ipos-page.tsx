@@ -1,8 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
-import { collection, query, onSnapshot, orderBy } from "firebase/firestore"
+import { useState, useEffect, useRef } from "react"
+import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import Header from "@/components/home/header"
 import Footer from "@/components/home/footer"
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Calendar, DollarSign, Building2, Search, Filter, ExternalLink, Star, Users, Target, Clock } from "lucide-react"
+import { Calendar, DollarSign, Building2, Search, Filter, ExternalLink, Star, Users, Target, Clock, Timer } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { pageVariants, staggerContainer, cardVariants } from "@/lib/animations"
 import { colors } from "@/lib/colors"
@@ -76,6 +76,19 @@ export default function IPOsPage() {
   const [selectedFilter, setSelectedFilter] = useState("All")
   const [filteredIpos, setFilteredIpos] = useState<IPO[]>([])
 
+  // Enquiry modal state
+  const [isEnquiryOpen, setIsEnquiryOpen] = useState(false)
+  const [selectedIpo, setSelectedIpo] = useState<IPO | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [enquiryForm, setEnquiryForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+  })
+  const modalRef = useRef<HTMLDivElement | null>(null)
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "open":
@@ -113,6 +126,75 @@ export default function IPOsPage() {
 
     return () => unsubscribe()
   }, [])
+
+  // small safe HTML->text stripper
+  const stripHtml = (html?: string) => {
+    if (!html) return ""
+    try {
+      if (typeof window !== "undefined" && "DOMParser" in window) {
+        const doc = new DOMParser().parseFromString(html, "text/html")
+        return doc.body.textContent || ""
+      }
+    } catch (e) {
+      // fallback
+    }
+    return html.replace(/<\/?[^>]+(>|$)/g, "")
+  }
+
+  // open modal & prefill message
+  const openEnquiryFor = (ipo: IPO) => {
+    setSelectedIpo(ipo)
+    setEnquiryForm((prev) => ({
+      ...prev,
+      message: `I would like to apply for the ${ipo.companyName} IPO (₹${ipo.priceRange?.min ?? ""} - ₹${ipo.priceRange?.max ?? ""}). Please guide me through the application process.`,
+    }))
+    setIsEnquiryOpen(true)
+
+    // focus modal after open
+    setTimeout(() => modalRef.current?.focus(), 150)
+  }
+
+  const closeEnquiry = () => {
+    setIsEnquiryOpen(false)
+    setSelectedIpo(null)
+    setEnquiryForm({ name: "", email: "", phone: "", message: "" })
+    setIsSubmitting(false)
+    setSubmitSuccess(false)
+  }
+
+  const handleEnquirySubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!selectedIpo) return
+
+    setIsSubmitting(true)
+    try {
+      const clean = {
+        name: stripHtml(enquiryForm.name),
+        email: stripHtml(enquiryForm.email),
+        phone: stripHtml(enquiryForm.phone),
+        message: stripHtml(enquiryForm.message),
+      }
+
+      await addDoc(collection(db, "ipo-enquiries"), {
+        ...clean,
+        ipoId: selectedIpo.id,
+        ipoName: selectedIpo.companyName,
+        createdAt: serverTimestamp(),
+      })
+
+      setSubmitSuccess(true)
+      setEnquiryForm({ name: "", email: "", phone: "", message: "" })
+
+      // close after short delay so user sees success
+      setTimeout(() => {
+        closeEnquiry()
+      }, 3000)
+    } catch (err) {
+      console.error("Error submitting enquiry:", err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -180,9 +262,6 @@ export default function IPOsPage() {
                 </span>
               </motion.div>
             </motion.div>
-
-            {/* IPO Stats */}
-           
 
             {/* Search and Filters */}
             <motion.div
@@ -440,6 +519,7 @@ export default function IPOsPage() {
                           size="sm"
                           className="flex-1"
                           disabled={ipo.status !== "open"}
+                          onClick={() => openEnquiryFor(ipo)}
                           style={{
                             backgroundColor: colors.primary.main,
                             borderColor: colors.primary.main,
@@ -484,6 +564,87 @@ export default function IPOsPage() {
         </section>
       </main>
       <Footer />
+
+      {/* Enquiry Modal */}
+      {isEnquiryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" onClick={closeEnquiry} />
+
+          <motion.div
+            ref={modalRef}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.18 }}
+            tabIndex={-1}
+            className="relative z-10 max-w-xl w-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold">{selectedIpo?.companyName}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Apply / Enquiry for this IPO</p>
+              </div>
+              <div>
+                <button onClick={closeEnquiry} className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">Close</button>
+              </div>
+            </div>
+
+            {submitSuccess ? (
+              <div className="text-center py-8">
+                <div className="text-3xl font-bold text-green-600 mb-2">Submitted</div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Your enquiry has been received. We'll contact you soon.</p>
+              </div>
+            ) : (
+              <form onSubmit={(e) => { e.preventDefault(); handleEnquirySubmit(); }} className="space-y-4">
+                <div>
+                  <input
+                    required
+                    placeholder="Your Name"
+                    value={enquiryForm.name}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    required
+                    type="email"
+                    placeholder="Email Address"
+                    value={enquiryForm.email}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, email: e.target.value }))}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                  <input
+                    required
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={enquiryForm.phone}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, phone: e.target.value }))}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <textarea
+                    placeholder="Message..."
+                    value={enquiryForm.message}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, message: e.target.value }))}
+                    rows={4}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <Button type="button" onClick={handleEnquirySubmit} disabled={isSubmitting} className="bg-primary-600" style={{ backgroundColor: colors.primary.main, color: "white" }}>
+                    {isSubmitting ? "Submitting..." : `Submit Enquiry`}
+                  </Button>
+                  <Button variant="outline" onClick={closeEnquiry}>Cancel</Button>
+                </div>
+              </form>
+            )}
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   )
 }

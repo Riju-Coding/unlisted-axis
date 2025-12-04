@@ -86,22 +86,7 @@ export default function Header() {
       >
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
          <Link href="/" className="flex items-center space-x-2 group" aria-label="Unlisted Axis Home">
-  <motion.div
-    className="relative w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-    style={{
-      background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`,
-      boxShadow: `0 4px 14px 0 ${themeColors.primary}40`,
-    }}
-    whileHover={{
-      scale: 1.1,
-      rotate: [0, -5, 5, 0],
-      boxShadow: `0 20px 25px -5px ${themeColors.primary}66, 0 10px 10px -5px ${themeColors.primary}11`,
-    }}
-    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-  >
-    <TrendingUp className="w-6 h-6 text-white drop-shadow-sm" />
-  </motion.div>
-
+ 
   <motion.div whileHover={{ scale: 1.05 }} className="h-8 w-auto ml-10 mb-5">
     <Image 
       src="/logo.png"

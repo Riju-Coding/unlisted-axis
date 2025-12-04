@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
-import { collection, query, onSnapshot, orderBy } from "firebase/firestore"
+import { collection, query, onSnapshot, orderBy, where } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import Header from "@/components/home/header"
 import Footer from "@/components/home/footer"
@@ -68,16 +68,18 @@ export default function MarketsPage() {
   const [filteredShares, setFilteredShares] = useState([])
 
   useEffect(() => {
-    const q = query(collection(db, "shares"), orderBy("sharesName"))
+    const q = query(collection(db, "shares"),
+  where("status", "==", "active"),
+  orderBy("sharesName"))
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const sharesData = []
-      querySnapshot.forEach((doc) => {
-        sharesData.push({ id: doc.id, ...doc.data() })
-      })
-      setShares(sharesData)
-      setFilteredShares(sharesData)
-      setLoading(false)
-    })
+  const sharesData = []
+  querySnapshot.forEach((doc) => {
+    sharesData.push({ id: doc.id, ...doc.data() })
+  })
+  setShares(sharesData)
+  setFilteredShares(sharesData)
+  setLoading(false)
+})
 
     return () => unsubscribe()
   }, [])

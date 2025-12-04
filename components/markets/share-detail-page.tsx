@@ -93,6 +93,7 @@ export default function ShareDetailPage({ slug, id }: ShareDetailPageProps) {
   const [notFound, setNotFound] = useState(false)
   const [selectedYear, setSelectedYear] = useState("2024")
   const [activeFinancialTab, setActiveFinancialTab] = useState("income")
+  const [showFullDescription, setShowFullDescription] = useState(false)
   const [enquiryForm, setEnquiryForm] = useState({
     name: "",
     email: "",
@@ -102,7 +103,13 @@ export default function ShareDetailPage({ slug, id }: ShareDetailPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const router = useRouter()
-
+  const DESCRIPTION_PREVIEW_LENGTH = 260 // adjust as needed
+  const descriptionText = share?.description ? share.description.trim() : "No description available"
+  const isLongDescription = descriptionText.length > DESCRIPTION_PREVIEW_LENGTH
+  const displayedDescription =
+  isLongDescription && !showFullDescription
+    ? descriptionText.slice(0, DESCRIPTION_PREVIEW_LENGTH) + "..."
+    : descriptionText
   useEffect(() => {
     if (id) {
       const shareDocRef = doc(db, "shares", id)
@@ -352,9 +359,23 @@ export default function ShareDetailPage({ slug, id }: ShareDetailPageProps) {
                     <h1 className="text-4xl md:text-5xl font-black mb-2" style={{ color: colors.text.primary }}>
                       {share.sharesName}
                     </h1>
-                    <p className="text-lg" style={{ color: colors.text.secondary }}>
-                      {share.description || "No description available"}
-                    </p>
+                    <p className="text-lg" style={{ color: colors.text.secondary, whiteSpace: "pre-line" }}>
+  {displayedDescription}
+</p>
+
+{isLongDescription && (
+  <div className="mt-2">
+    <button
+      type="button"
+      onClick={() => setShowFullDescription((s) => !s)}
+      className="text-sm font-medium underline rounded focus:outline-none"
+      style={{ color: colors.primary.main }}
+      aria-expanded={showFullDescription}
+    >
+      {showFullDescription ? "Read less" : "Read more"}
+    </button>
+  </div>
+)}
                   </div>
                 </div>
 

@@ -2,8 +2,17 @@
 
 import type React from "react"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
-import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore"
+import { useState, useEffect, useRef } from "react"
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import Header from "@/components/home/header"
 import Footer from "@/components/home/footer"
@@ -95,6 +104,9 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
 
+  // ref to the enquiry form container so Apply Now can scroll to it
+  const enquiryRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -125,7 +137,7 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
 
             if (docSnap.exists()) {
               const data = docSnap.data()
-              ipoData = { id: docSnap.id, ...data } as IPO
+              ipoData = { id: docSnap.id, ...(data as object) } as IPO
               console.log("[v0] Successfully fetched IPO by ID:", ipoData.companyName)
             }
           } catch (idError) {
@@ -141,9 +153,9 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
             const querySnapshot = await getDocs(q)
 
             if (!querySnapshot.empty) {
-              const doc = querySnapshot.docs[0]
-              const data = doc.data()
-              ipoData = { id: doc.id, ...data } as IPO
+              const docSnap = querySnapshot.docs[0]
+              const data = docSnap.data()
+              ipoData = { id: docSnap.id, ...(data as object) } as IPO
               console.log("[v0] Successfully fetched IPO by slug:", ipoData.companyName)
             }
           } catch (slugError) {
@@ -161,7 +173,9 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
         }
       } catch (err) {
         console.error("[v0] Critical error in fetchIPO:", err)
-        setError(`Failed to load IPO details: ${err instanceof Error ? err.message : "Unknown error"}`)
+        setError(
+          `Failed to load IPO details: ${err instanceof Error ? err.message : "Unknown error"}`
+        )
       } finally {
         setLoading(false)
       }
@@ -169,6 +183,20 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
 
     fetchIPO()
   }, [slug, id, mounted])
+
+  // Helper: strip HTML -> plain text (use DOMParser on client, fallback to regex for SSR)
+  const stripHtml = (html?: string) => {
+    if (!html) return ""
+    try {
+      if (typeof window !== "undefined" && "DOMParser" in window) {
+        const doc = new DOMParser().parseFromString(html, "text/html")
+        return doc.body.textContent || ""
+      }
+    } catch (e) {
+      // fallthrough to regex fallback
+    }
+    return html.replace(/<\/?[^>]+(>|$)/g, "")
+  }
 
   const handleEnquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -178,8 +206,17 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
     try {
       console.log("[v0] Submitting enquiry for IPO:", ipo.companyName)
 
-      await addDoc(collection(db, "ipo-enquiries"), {
+      // sanitize all fields to avoid storing HTML tags or markup
+      const cleanEnquiry = {
         ...enquiryForm,
+        name: stripHtml(enquiryForm.name),
+        email: stripHtml(enquiryForm.email),
+        phone: stripHtml(enquiryForm.phone),
+        message: stripHtml(enquiryForm.message),
+      }
+
+      await addDoc(collection(db, "ipo-enquiries"), {
+        ...cleanEnquiry,
         ipoId: ipo.id,
         ipoName: ipo.companyName,
         createdAt: serverTimestamp(),
@@ -195,6 +232,28 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // When user clicks Apply Now:
+  // - Prefill the enquiry message with a friendly default
+  // - Scroll the enquiry area into view and focus first input
+  const handleApplyNow = () => {
+    if (!ipo) return
+
+    setEnquiryForm((prev) => ({
+      ...prev,
+      message: `I would like to apply for the ${ipo.companyName} IPO (₹${ipo.priceRange?.min} - ₹${ipo.priceRange?.max}). Please guide me through the application process.`,
+    }))
+
+    // scroll the enquiry form into view (smooth)
+    enquiryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+
+    // focus the first interactive field inside the enquiry area after a short delay
+    // (delay helps when browser is animating scroll)
+    setTimeout(() => {
+      const field = enquiryRef.current?.querySelector("input, textarea") as HTMLElement | null
+      field?.focus()
+    }, 300)
   }
 
   if (!mounted || loading) {
@@ -316,9 +375,7 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
                         <h1 className="text-3xl font-bold" style={{ color: colors.text.primary }}>
                           {ipo.companyName}
                         </h1>
-                        {ipo.featured && (
-                          <Star className="w-5 h-5 fill-current" style={{ color: colors.accent.main }} />
-                        )}
+                        {ipo.featured && <Star className="w-5 h-5 fill-current" style={{ color: colors.accent.main }} />}
                       </div>
                       <p className="text-lg" style={{ color: colors.text.secondary }}>
                         {ipo.sector} • {ipo.category.toUpperCase()}
@@ -404,8 +461,8 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
                                 ipo.subscription >= 5
                                   ? colors.success.main
                                   : ipo.subscription >= 2
-                                    ? colors.accent.main
-                                    : colors.error.main,
+                                  ? colors.accent.main
+                                  : colors.error.main,
                             }}
                           >
                             {ipo.subscription}x
@@ -417,11 +474,7 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
                             className="font-bold"
                             style={{
                               color:
-                                ipo.gmp > 0
-                                  ? colors.success.main
-                                  : ipo.gmp < 0
-                                    ? colors.error.main
-                                    : colors.text.secondary,
+                                ipo.gmp > 0 ? colors.success.main : ipo.gmp < 0 ? colors.error.main : colors.text.secondary,
                             }}
                           >
                             ₹{ipo.gmp}
@@ -532,7 +585,7 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
                 </CardContent>
               </Card>
 
-              {/* Company Description */}
+              {/* Company Description - stripped to plain text */}
               {ipo.description && (
                 <Card
                   className="backdrop-blur-sm border"
@@ -546,7 +599,7 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
                   </CardHeader>
                   <CardContent>
                     <p style={{ color: colors.text.secondary }} className="leading-relaxed">
-                      {ipo.description}
+                      {stripHtml(ipo.description)}
                     </p>
                   </CardContent>
                 </Card>
@@ -754,6 +807,7 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
                   <Button
                     className="w-full"
                     disabled={ipo.status !== "open"}
+                    onClick={handleApplyNow}
                     style={{
                       backgroundColor: ipo.status === "open" ? colors.primary.main : colors.neutral.main,
                       borderColor: ipo.status === "open" ? colors.primary.main : colors.neutral.main,
@@ -791,90 +845,93 @@ export default function IPODetailPage({ slug, id }: IPODetailPageProps) {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  {submitSuccess ? (
-                    <div className="text-center py-6">
-                      <CheckCircle className="w-12 h-12 mx-auto mb-3" style={{ color: colors.success.main }} />
-                      <h3 className="font-semibold mb-2" style={{ color: colors.text.primary }}>
-                        Enquiry Submitted!
-                      </h3>
-                      <p className="text-sm" style={{ color: colors.text.secondary }}>
-                        Our team will contact you soon with IPO guidance.
-                      </p>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleEnquirySubmit} className="space-y-4">
-                      <div>
-                        <Input
-                          placeholder="Your Name"
-                          value={enquiryForm.name}
-                          onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
-                          required
-                          className="backdrop-blur-sm"
-                          style={{
-                            backgroundColor: `${colors.background.main}CC`,
-                            borderColor: `${colors.primary.light}80`,
-                            color: colors.text.primary,
-                          }}
-                        />
+                  {/* attach ref to this wrapper so Apply Now can scroll into view */}
+                  <div ref={enquiryRef}>
+                    {submitSuccess ? (
+                      <div className="text-center py-6">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-3" style={{ color: colors.success.main }} />
+                        <h3 className="font-semibold mb-2" style={{ color: colors.text.primary }}>
+                          Enquiry Submitted!
+                        </h3>
+                        <p className="text-sm" style={{ color: colors.text.secondary }}>
+                          Our team will contact you soon with IPO guidance.
+                        </p>
                       </div>
-                      <div>
-                        <Input
-                          type="email"
-                          placeholder="Email Address"
-                          value={enquiryForm.email}
-                          onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
-                          required
-                          className="backdrop-blur-sm"
+                    ) : (
+                      <form onSubmit={handleEnquirySubmit} className="space-y-4">
+                        <div>
+                          <Input
+                            placeholder="Your Name"
+                            value={enquiryForm.name}
+                            onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
+                            required
+                            className="backdrop-blur-sm"
+                            style={{
+                              backgroundColor: `${colors.background.main}CC`,
+                              borderColor: `${colors.primary.light}80`,
+                              color: colors.text.primary,
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Input
+                            type="email"
+                            placeholder="Email Address"
+                            value={enquiryForm.email}
+                            onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
+                            required
+                            className="backdrop-blur-sm"
+                            style={{
+                              backgroundColor: `${colors.background.main}CC`,
+                              borderColor: `${colors.primary.light}80`,
+                              color: colors.text.primary,
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Input
+                            type="tel"
+                            placeholder="Phone Number"
+                            value={enquiryForm.phone}
+                            onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
+                            required
+                            className="backdrop-blur-sm"
+                            style={{
+                              backgroundColor: `${colors.background.main}CC`,
+                              borderColor: `${colors.primary.light}80`,
+                              color: colors.text.primary,
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Textarea
+                            placeholder="Your message or questions about this IPO..."
+                            value={enquiryForm.message}
+                            onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
+                            rows={3}
+                            className="backdrop-blur-sm"
+                            style={{
+                              backgroundColor: `${colors.background.main}CC`,
+                              borderColor: `${colors.primary.light}80`,
+                              color: colors.text.primary,
+                            }}
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isSubmitting}
                           style={{
-                            backgroundColor: `${colors.background.main}CC`,
-                            borderColor: `${colors.primary.light}80`,
-                            color: colors.text.primary,
+                            backgroundColor: colors.primary.main,
+                            borderColor: colors.primary.main,
+                            color: "white",
                           }}
-                        />
-                      </div>
-                      <div>
-                        <Input
-                          type="tel"
-                          placeholder="Phone Number"
-                          value={enquiryForm.phone}
-                          onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
-                          required
-                          className="backdrop-blur-sm"
-                          style={{
-                            backgroundColor: `${colors.background.main}CC`,
-                            borderColor: `${colors.primary.light}80`,
-                            color: colors.text.primary,
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Textarea
-                          placeholder="Your message or questions about this IPO..."
-                          value={enquiryForm.message}
-                          onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
-                          rows={3}
-                          className="backdrop-blur-sm"
-                          style={{
-                            backgroundColor: `${colors.background.main}CC`,
-                            borderColor: `${colors.primary.light}80`,
-                            color: colors.text.primary,
-                          }}
-                        />
-                      </div>
-                      <Button
-                        type="submit"
-                        className="w-full"
-                        disabled={isSubmitting}
-                        style={{
-                          backgroundColor: colors.primary.main,
-                          borderColor: colors.primary.main,
-                          color: "white",
-                        }}
-                      >
-                        {isSubmitting ? "Submitting..." : "Submit Enquiry"}
-                      </Button>
-                    </form>
-                  )}
+                        >
+                          {isSubmitting ? "Submitting..." : "Submit Enquiry"}
+                        </Button>
+                      </form>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>

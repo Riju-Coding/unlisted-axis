@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { useInView } from "framer-motion"
 import { useRef } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { TrendingUp, Facebook, Instagram, Linkedin, Twitter } from "lucide-react"
 import { staggerContainer, footerVariants } from "@/lib/animations"
 import { colors } from "@/lib/colors"
@@ -101,16 +102,15 @@ export default function Footer() {
           {/* Brand Section */}
           <motion.div variants={footerVariants}>
             <div className="flex items-center space-x-2 mb-4">
-              <motion.div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{
-                  background: `linear-gradient(135deg, ${colors.primary.main}, ${colors.secondary.main})`,
-                }}
-                whileHover={{ scale: 1.1, rotate: 360 }}
-                transition={{ duration: 0.3 }}
-              >
-                <TrendingUp className="w-5 h-5 text-white" />
-              </motion.div>
+             <motion.div whileHover={{ scale: 1.05 }} className="h-8 w-auto ml-10 mb-5">
+                 <Image 
+                   src="/logo.png"
+                   alt="Unlisted Axis Logo"
+                   width={60}
+                   height={20}
+                   className="object-contain"
+                 />
+               </motion.div>
               <span className="text-xl font-bold">Unlisted Axis</span>
             </div>
             <p style={{ color: colors.text.muted }} className="mb-4">

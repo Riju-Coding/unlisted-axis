@@ -1,8 +1,16 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore"
+import { useState, useEffect, useRef } from "react"
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -86,6 +94,21 @@ export default function IPOListingsTable() {
     seconds: number
   } | null>(null)
 
+  // Modal / enquiry form state
+  const [isEnquiryOpen, setIsEnquiryOpen] = useState(false)
+  const [selectedIpo, setSelectedIpo] = useState<IPO | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+
+  const [enquiryForm, setEnquiryForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+  })
+
+  const modalRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     // Set up real-time listener for active IPOs
     const iposQuery = query(collection(db, "ipos"), where("active", "==", true), orderBy("openDate", "desc"))
@@ -93,7 +116,7 @@ export default function IPOListingsTable() {
     const unsubscribeIpos = onSnapshot(iposQuery, (snapshot) => {
       const iposData: IPO[] = []
       snapshot.forEach((doc) => {
-        iposData.push({ id: doc.id, ...doc.data() } as IPO)
+        iposData.push({ id: doc.id, ...(doc.data() as object) } as IPO)
       })
 
       setIpos(iposData)
@@ -108,7 +131,10 @@ export default function IPOListingsTable() {
   // Countdown timer for next upcoming IPO
   useEffect(() => {
     const upcomingIPOs = ipos.filter((ipo) => ipo.status === "upcoming")
-    if (upcomingIPOs.length === 0) return
+    if (upcomingIPOs.length === 0) {
+      setNextIPOCountdown(null)
+      return
+    }
 
     // Find the next upcoming IPO
     const nextIPO = upcomingIPOs.reduce((earliest, current) => {
@@ -137,6 +163,79 @@ export default function IPOListingsTable() {
 
     return () => clearInterval(interval)
   }, [ipos])
+
+  // small safe HTML->text stripper
+  const stripHtml = (html?: string) => {
+    if (!html) return ""
+    try {
+      if (typeof window !== "undefined" && "DOMParser" in window) {
+        const doc = new DOMParser().parseFromString(html, "text/html")
+        return doc.body.textContent || ""
+      }
+    } catch (e) {
+      // fallback
+    }
+    return html.replace(/<\/?[^>]+(>|$)/g, "")
+  }
+
+  const openEnquiryFor = (ipo: IPO) => {
+    setSelectedIpo(ipo)
+
+    setEnquiryForm((prev) => ({
+      ...prev,
+      message: `I would like to apply for the ${ipo.companyName} IPO (₹${ipo.priceRange?.min ?? ""} - ₹${ipo.priceRange?.max ?? ""}). Please guide me through the application process.`,
+    }))
+
+    setIsEnquiryOpen(true)
+
+    // focus modal after open
+    setTimeout(() => modalRef.current?.focus(), 150)
+  }
+
+  const closeEnquiry = () => {
+    setIsEnquiryOpen(false)
+    setSelectedIpo(null)
+    setEnquiryForm({ name: "", email: "", phone: "", message: "" })
+    setIsSubmitting(false)
+    setSubmitSuccess(false)
+  }
+
+  const handleEnquirySubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!selectedIpo) return
+
+    setIsSubmitting(true)
+    try {
+      const clean = {
+        name: stripHtml(enquiryForm.name),
+        email: stripHtml(enquiryForm.email),
+        phone: stripHtml(enquiryForm.phone),
+        message: stripHtml(enquiryForm.message),
+      }
+
+      await addDoc(collection(db, "ipo-enquiries"), {
+        ...clean,
+        ipoId: selectedIpo.id,
+        ipoName: selectedIpo.companyName,
+        createdAt: serverTimestamp(),
+      })
+
+      setSubmitSuccess(true)
+
+      // clear fields but keep modal open to show success
+      setEnquiryForm({ name: "", email: "", phone: "", message: "" })
+
+      // auto-close after brief delay
+      setTimeout(() => {
+        closeEnquiry()
+      }, 3500)
+    } catch (err) {
+      console.error("Error submitting enquiry:", err)
+      // keep modal open so user can retry
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -179,7 +278,7 @@ export default function IPOListingsTable() {
   return (
     <section className="py-20 px-4 bg-gradient-to-br from-green-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="container mx-auto">
-        {/* Section Header */}
+        {/* ... header and countdown (unchanged) */}
         <motion.div
           className="text-center mb-16"
           initial={{ opacity: 0, y: 30 }}
@@ -197,15 +296,8 @@ export default function IPOListingsTable() {
           </p>
         </motion.div>
 
-        {/* Countdown Timer for Next IPO */}
         {nextIPOCountdown && (
-          <motion.div
-            className="mb-12"
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
+          <motion.div className="mb-12" initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
             <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-2xl">
               <CardContent className="p-8">
                 <div className="text-center">
@@ -238,13 +330,7 @@ export default function IPOListingsTable() {
         )}
 
         {/* IPO Tables */}
-        <motion.div
-          className="grid lg:grid-cols-2 gap-8 mb-12"
-          variants={staggerContainer}
-          initial="initial"
-          whileInView="animate"
-          viewport={{ once: true }}
-        >
+        <motion.div className="grid lg:grid-cols-2 gap-8 mb-12" variants={staggerContainer} initial="initial" whileInView="animate" viewport={{ once: true }}>
           {/* Upcoming IPOs */}
           <motion.div variants={cardVariants}>
             <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border border-green-100/50 dark:border-gray-700/50 shadow-xl">
@@ -263,6 +349,7 @@ export default function IPOListingsTable() {
                         <TableHead>Open Date</TableHead>
                         <TableHead>Price Band</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -272,11 +359,7 @@ export default function IPOListingsTable() {
                             <div className="flex items-center space-x-3">
                               <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                                 {ipo.companyLogo ? (
-                                  <img
-                                    src={ipo.companyLogo || "/placeholder.svg"}
-                                    alt={ipo.companyName}
-                                    className="w-full h-full object-cover"
-                                  />
+                                  <img src={ipo.companyLogo || "/placeholder.svg"} alt={ipo.companyName} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xs">
                                     {ipo.companyName.charAt(0)}
@@ -291,12 +374,20 @@ export default function IPOListingsTable() {
                           </TableCell>
                           <TableCell className="font-medium">{formatDate(ipo.openDate)}</TableCell>
                           <TableCell>
-                            <div className="text-sm">
-                              ₹{ipo.priceRange.min} - ₹{ipo.priceRange.max}
-                            </div>
+                            <div className="text-sm">₹{ipo.priceRange.min} - ₹{ipo.priceRange.max}</div>
                           </TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(ipo.status)}>{ipo.status.toUpperCase()}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => openEnquiryFor(ipo)} className="bg-green-600 text-white">
+                                Apply Now
+                              </Button>
+                              <Link href={`/ipos/${ipo.slug}`}>
+                                <Button variant="outline" size="sm">View</Button>
+                              </Link>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -325,6 +416,7 @@ export default function IPOListingsTable() {
                         <TableHead>Close Date</TableHead>
                         <TableHead>Price Band</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -334,11 +426,7 @@ export default function IPOListingsTable() {
                             <div className="flex items-center space-x-3">
                               <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                                 {ipo.companyLogo ? (
-                                  <img
-                                    src={ipo.companyLogo || "/placeholder.svg"}
-                                    alt={ipo.companyName}
-                                    className="w-full h-full object-cover"
-                                  />
+                                  <img src={ipo.companyLogo || "/placeholder.svg"} alt={ipo.companyName} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xs">
                                     {ipo.companyName.charAt(0)}
@@ -353,12 +441,20 @@ export default function IPOListingsTable() {
                           </TableCell>
                           <TableCell className="font-medium">{formatDate(ipo.closeDate)}</TableCell>
                           <TableCell>
-                            <div className="text-sm">
-                              ₹{ipo.priceRange.min} - ₹{ipo.priceRange.max}
-                            </div>
+                            <div className="text-sm">₹{ipo.priceRange.min} - ₹{ipo.priceRange.max}</div>
                           </TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(ipo.status)}>{ipo.status.toUpperCase()}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => openEnquiryFor(ipo)} className="bg-green-600 text-white">
+                                Apply Now
+                              </Button>
+                              <Link href={`/ipos/${ipo.slug}`}>
+                                <Button variant="outline" size="sm">View</Button>
+                              </Link>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -370,14 +466,8 @@ export default function IPOListingsTable() {
           </motion.div>
         </motion.div>
 
-        {/* View All IPOs CTA */}
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
+        {/* View All CTA + Quick Stats (unchanged) */}
+        <motion.div className="text-center" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.4 }}>
           <Link href="/ipos">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-block">
               <Button
@@ -386,11 +476,7 @@ export default function IPOListingsTable() {
               >
                 <Building2 className="w-5 h-5 mr-3" />
                 View All IPOs
-                <motion.div
-                  className="ml-3 opacity-0 group-hover:opacity-100 transition-opacity"
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
-                >
+                <motion.div className="ml-3 opacity-0 group-hover:opacity-100 transition-opacity" animate={{ x: [0, 5, 0] }} transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}>
                   <ArrowRight className="w-5 h-5" />
                 </motion.div>
               </Button>
@@ -398,32 +484,102 @@ export default function IPOListingsTable() {
           </Link>
         </motion.div>
 
-        {/* Quick Stats */}
-        <motion.div
-          className="mt-16 grid md:grid-cols-3 gap-6 text-center"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
+        <motion.div className="mt-16 grid md:grid-cols-3 gap-6 text-center" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.6 }}>
           <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-6 border border-green-100/50 dark:border-gray-700/50">
             <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">{upcomingIPOs.length}</div>
             <div className="text-gray-600 dark:text-gray-400">Upcoming IPOs</div>
           </div>
           <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-6 border border-green-100/50 dark:border-gray-700/50">
-            <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-              {ipos.filter((ipo) => ipo.status === "open").length}
-            </div>
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">{ipos.filter((ipo) => ipo.status === "open").length}</div>
             <div className="text-gray-600 dark:text-gray-400">Currently Open</div>
           </div>
           <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-6 border border-green-100/50 dark:border-gray-700/50">
-            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
-              ₹{ipos.reduce((sum, ipo) => sum + ipo.issueSize, 0).toLocaleString()}Cr
-            </div>
+            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">₹{ipos.reduce((sum, ipo) => sum + (ipo.issueSize || 0), 0).toLocaleString()}Cr</div>
             <div className="text-gray-600 dark:text-gray-400">Total Issue Size</div>
           </div>
         </motion.div>
       </div>
+
+      {/* Enquiry Modal */}
+      {isEnquiryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" onClick={closeEnquiry} />
+
+          <motion.div
+            ref={modalRef}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.18 }}
+            tabIndex={-1}
+            className="relative z-10 max-w-xl w-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold">{selectedIpo?.companyName}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Apply / Enquiry for this IPO</p>
+              </div>
+              <div>
+                <button onClick={closeEnquiry} className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">Close</button>
+              </div>
+            </div>
+
+            {submitSuccess ? (
+              <div className="text-center py-8">
+                <div className="text-3xl font-bold text-green-600 mb-2">Submitted</div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Your enquiry has been received. We'll contact you soon.</p>
+              </div>
+            ) : (
+              <form onSubmit={(e) => { e.preventDefault(); handleEnquirySubmit(); }} className="space-y-4">
+                <div>
+                  <input
+                    required
+                    placeholder="Your Name"
+                    value={enquiryForm.name}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    required
+                    type="email"
+                    placeholder="Email Address"
+                    value={enquiryForm.email}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, email: e.target.value }))}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                  <input
+                    required
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={enquiryForm.phone}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, phone: e.target.value }))}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <textarea
+                    placeholder="Message..."
+                    value={enquiryForm.message}
+                    onChange={(e) => setEnquiryForm((p) => ({ ...p, message: e.target.value }))}
+                    rows={4}
+                    className="w-full rounded-md border px-3 py-2 bg-white dark:bg-gray-800 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <Button type="button" onClick={handleEnquirySubmit} disabled={isSubmitting} className="bg-green-600 text-white">
+                    {isSubmitting ? "Submitting..." : `Submit Enquiry`}
+                  </Button>
+                  <Button variant="outline" onClick={closeEnquiry}>Cancel</Button>
+                </div>
+              </form>
+            )}
+          </motion.div>
+        </div>
+      )}
     </section>
   )
 }
