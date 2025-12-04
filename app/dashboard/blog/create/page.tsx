@@ -289,7 +289,10 @@ export default function CreateBlogPage() {
               </CardHeader>
               <CardContent>
                 <ClientWrapper>
-                  <QuillEditor  />
+                 <QuillEditor 
+    value={formData.content}
+    onChange={(value) => handleContentChange(value)}
+  />
 
      
                 </ClientWrapper>
